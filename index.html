@@ -434,7 +434,16 @@
             currentLevel = level;
             noteCount = level + 1;
             displayTime = 2000 + (level - 1) * 500;
-            totalNotes = noteCount * 10;
+            
+            // Set total notes correctly based on level
+            if (level === 1) {
+                totalNotes = 20; // 2 notes per round × 10 rounds
+            } else if (level === 2) {
+                totalNotes = 40; // 4 notes per round × 10 rounds
+            } else {
+                totalNotes = 60; // 6 notes per round × 10 rounds
+            }
+            
             correctNotes = 0;
             currentRound = 0;
             
