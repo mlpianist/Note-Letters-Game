@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Memory Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #game-container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .screen {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 
+                0 32px 64px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+            padding: 48px;
+            text-align: center;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .screen.fade-out {
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+        }
+
+        .screen.fade-in {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #64748b;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+
+        .level-buttons {
+            display: grid;
+            gap: 16px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .level-btn {
+            padding: 20px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .level-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .level-btn:hover::before {
+            left: 100%;
+        }
+
+        .level-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 48px rgba(102, 126, 234, 0.4);
+        }
+
+        .level-btn:active {
+            transform: translateY(0);
+        }
+
+        .level-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        #game-screen {
+            display: none;
+        }
+
+        #note-display {
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 40px 0;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.2em;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .note-letter {
+            display: inline-block;
+            animation: noteAppear 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes noteAppear {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #piano {
+            display: none;
+            position: relative;
+            height: 220px;
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 
+                inset 0 2px 4px rgba(0, 0, 0, 0.06),
+                0 8px 32px rgba(0, 0, 0, 0.12);
+            width: fit-content;
+            margin: 0 auto;
+            animation: pianoSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pianoSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .key {
+            position: absolute;
+            border-radius: 0 0 8px 8px;
+            box-sizing: border-box;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .white-key {
+            width: 48px;
+            height: 180px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 2px solid #e2e8f0;
+            z-index: 1;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .white-key:hover {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            transform: translateY(2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .white-key:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .black-key {
+            width: 28px;
+            height: 110px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #0f172a;
+            z-index: 2;
+            pointer-events: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .white-key.correct {
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+            border-color: #047857;
+            animation: correctPulse 0.6s ease-out;
+        }
+
+        .white-key.incorrect {
+            background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+            border-color: #b91c1c;
+            animation: incorrectShake 0.6s ease-out;
+        }
+
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes incorrectShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        #score-screen {
+            display: none;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            border-radius: 20px;
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .score-number {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .score-label {
+            font-size: 1.1rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .progress-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 24px 0;
+        }
+
+        .progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: scale(1.2);
+        }
+
+        .floating-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .floating-note {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.1;
+            animation: float 20s linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.1;
+            }
+            90% {
+                opacity: 0.1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-elements">
+        <div class="floating-note" style="left: 10%; animation-delay: 0s;">♪</div>
+        <div class="floating-note" style="left: 20%; animation-delay: 4s;">♫</div>
+        <div class="floating-note" style="left: 30%; animation-delay: 8s;">♪</div>
+        <div class="floating-note" style="left: 40%; animation-delay: 12s;">♬</div>
+        <div class="floating-note" style="left: 50%; animation-delay: 16s;">♪</div>
+        <div class="floating-note" style="left: 60%; animation-delay: 2s;">♫</div>
+        <div class="floating-note" style="left: 70%; animation-delay: 6s;">♪</div>
+        <div class="floating-note" style="left: 80%; animation-delay: 10s;">♬</div>
+        <div class="floating-note" style="left: 90%; animation-delay: 14s;">♪</div>
+    </div>
+
+    <div id="game-container">
+        <div id="start-screen" class="screen fade-in">
+            <h1>Note Letters Game</h1>
+            <div class="level-buttons">
+                <button class="level-btn" onclick="startGame(1)">Level One</button>
+                <button class="level-btn" onclick="startGame(2)">Level Two</button>
+                <button class="level-btn" onclick="startGame(3)">Level Three</button>
+            </div>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="progress-indicator" id="progress-indicator"></div>
+            <div id="note-display"></div>
+            <div id="piano"></div>
+        </div>
+
+        <div id="score-screen" class="screen">
+            <h1>Level Complete!</h1>
+            <div class="score-card">
+                <div class="score-number" id="score-number"></div>
+                <div class="score-label" id="score-details"></div>
+            </div>
+            <button class="level-btn" onclick="returnToStart()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+        const pianoKeys = [
+            { note: 'C3', type: 'white', pos: 0 },
+            { note: 'C#3', type: 'black', pos: 34 },
+            { note: 'D3', type: 'white', pos: 50 },
+            { note: 'D#3', type: 'black', pos: 84 },
+            { note: 'E3', type: 'white', pos: 100 },
+            { note: 'F3', type: 'white', pos: 150 },
+            { note: 'F#3', type: 'black', pos: 184 },
+            { note: 'G3', type: 'white', pos: 200 },
+            { note: 'G#3', type: 'black', pos: 234 },
+            { note: 'A3', type: 'white', pos: 250 },
+            { note: 'A#3', type: 'black', pos: 284 },
+            { note: 'B3', type: 'white', pos: 300 },
+            { note: 'C4', type: 'white', pos: 350 },
+            { note: 'C#4', type: 'black', pos: 384 },
+            { note: 'D4', type: 'white', pos: 400 },
+            { note: 'D#4', type: 'black', pos: 434 },
+            { note: 'E4', type: 'white', pos: 450 },
+            { note: 'F4', type: 'white', pos: 500 },
+            { note: 'F#4', type: 'black', pos: 534 },
+            { note: 'G4', type: 'white', pos: 550 },
+            { note: 'G#4', type: 'black', pos: 584 },
+            { note: 'A4', type: 'white', pos: 600 },
+            { note: 'A#4', type: 'black', pos: 634 },
+            { note: 'B4', type: 'white', pos: 650 }
+        ];
+        const noteFrequencies = {
+            'C3': 261.63, 'C#3': 277.18, 'D3': 293.66, 'D#3': 311.13, 'E3': 329.63,
+            'F3': 349.23, 'F#3': 369.99, 'G3': 392.00, 'G#3': 415.30, 'A3': 440.00,
+            'A#3': 466.16, 'B3': 493.88, 'C4': 523.25, 'C#4': 554.37, 'D4': 587.33,
+            'D#4': 622.25, 'E4': 659.25, 'F4': 698.46, 'F#4': 739.99, 'G4': 783.99,
+            'G#4': 830.61, 'A4': 880.00, 'A#4': 932.33, 'B4': 987.77
+        };
+        let currentLevel, noteCount, displayTime, totalNotes, correctNotes, currentRound, targetSequence, playerSequence;
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function transitionScreens(hideElement, showElement) {
+            hideElement.classList.add('fade-out');
+            hideElement.classList.remove('fade-in');
+            
+            setTimeout(() => {
+                hideElement.style.display = 'none';
+                showElement.style.display = 'block';
+                showElement.classList.remove('fade-out');
+                showElement.classList.add('fade-in');
+            }, 300);
+        }
+
+        function startGame(level) {
+            currentLevel = level;
+            noteCount = level + 1;
+            displayTime = 2000 + (level - 1) * 500;
+            totalNotes = noteCount * 10;
+            correctNotes = 0;
+            currentRound = 0;
+            
+            transitionScreens(
+                document.getElementById('start-screen'),
+                document.getElementById('game-screen')
+            );
+
+            createPiano();
+            createProgressIndicator();
+            
+            setTimeout(() => {
+                startRound();
+            }, 600);
+        }
+
+        function createProgressIndicator() {
+            const indicator = document.getElementById('progress-indicator');
+            indicator.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                indicator.appendChild(dot);
+            }
+        }
+
+        function updateProgressIndicator() {
+            const dots = document.querySelectorAll('.progress-dot');
+            dots.forEach((dot, index) => {
+                if (index < currentRound) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+
+        function createPiano() {
+            const piano = document.getElementById('piano');
+            piano.innerHTML = '';
+            piano.style.width = `${pianoKeys[pianoKeys.length - 1].pos + 50}px`;
+            pianoKeys.forEach(key => {
+                const keyElement = document.createElement('div');
+                keyElement.className = key.type === 'white' ? 'key white-key' : 'key black-key';
+                keyElement.style.left = `${key.pos}px`;
+                if (key.type === 'white') {
+                    keyElement.dataset.note = key.note;
+                    keyElement.onclick = () => handleKeyClick(key.note);
+                }
+                piano.appendChild(keyElement);
+            });
+        }
+
+        function startRound() {
+            if (currentRound >= 10) {
+                endLevel();
+                return;
+            }
+            currentRound++;
+            updateProgressIndicator();
+            targetSequence = [];
+            playerSequence = [];
+            for (let i = 0; i < noteCount; i++) {
+                targetSequence.push(notes[Math.floor(Math.random() * notes.length)]);
+            }
+            showNotes();
+        }
+
+        function showNotes() {
+            const noteDisplay = document.getElementById('note-display');
+            const piano = document.getElementById('piano');
+            
+            noteDisplay.innerHTML = '';
+            targetSequence.forEach((note, index) => {
+                const span = document.createElement('span');
+                span.className = 'note-letter';
+                span.textContent = note + (index < targetSequence.length - 1 ? ' ' : '');
+                span.style.animationDelay = `${index * 0.1}s`;
+                noteDisplay.appendChild(span);
+            });
+            
+            piano.style.display = 'none';
+            
+            setTimeout(() => {
+                noteDisplay.innerHTML = '';
+                piano.style.display = 'block';
+            }, displayTime);
+        }
+
+        function handleKeyClick(note) {
+            playSound(note);
+            const keyElement = document.querySelector(`.key[data-note="${note}"]`);
+            const expectedNote = targetSequence[playerSequence.length];
+            
+            if (note.startsWith(expectedNote)) {
+                correctNotes++;
+                keyElement.classList.add('correct');
+            } else {
+                keyElement.classList.add('incorrect');
+            }
+            
+            playerSequence.push(note);
+            
+            setTimeout(() => {
+                keyElement.classList.remove('correct', 'incorrect');
+            }, 600);
+            
+            if (playerSequence.length === noteCount) {
+                setTimeout(() => {
+                    document.getElementById('piano').style.display = 'none';
+                    setTimeout(startRound, 800);
+                }, 400);
+            }
+        }
+
+        function playSound(note) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(noteFrequencies[note], audioContext.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        function endLevel() {
+            const score = (correctNotes / totalNotes * 100).toFixed(1);
+            
+            setTimeout(() => {
+                transitionScreens(
+                    document.getElementById('game-screen'),
+                    document.getElementById('score-screen')
+                );
+                
+                setTimeout(() => {
+                    document.getElementById('score-number').textContent = `${score}%`;
+                    document.getElementById('score-details').textContent = `${correctNotes} out of ${totalNotes} notes correct`;
+                }, 300);
+            }, 1000);
+        }
+
+        function returnToStart() {
+            transitionScreens(
+                document.getElementById('score-screen'),
+                document.getElementById('start-screen')
+            );
+        }
+
+        // Initialize audio context on first user interaction
+        document.addEventListener('click', function initAudio() {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            document.removeEventListener('click', initAudio);
+        });
+    </script>
+</body>
+</html>
