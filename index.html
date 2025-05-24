@@ -497,7 +497,18 @@
             updateProgressIndicator();
             targetSequence = [];
             playerSequence = [];
-            for (let i = 0; i < noteCount; i++) {
+            
+            // Generate the correct number of notes based on level
+            let notesToGenerate;
+            if (currentLevel === 1) {
+                notesToGenerate = 2;
+            } else if (currentLevel === 2) {
+                notesToGenerate = 4;
+            } else {
+                notesToGenerate = 6;
+            }
+            
+            for (let i = 0; i < notesToGenerate; i++) {
                 targetSequence.push(notes[Math.floor(Math.random() * notes.length)]);
             }
             showNotes();
@@ -542,7 +553,17 @@
                 keyElement.classList.remove('correct', 'incorrect');
             }, 600);
             
-            if (playerSequence.length === noteCount) {
+            // Check if we've played all the required notes for this sequence
+            let requiredNotes;
+            if (currentLevel === 1) {
+                requiredNotes = 2;
+            } else if (currentLevel === 2) {
+                requiredNotes = 4;
+            } else {
+                requiredNotes = 6;
+            }
+            
+            if (playerSequence.length === requiredNotes) {
                 setTimeout(() => {
                     document.getElementById('piano').style.display = 'none';
                     setTimeout(startRound, 800);
