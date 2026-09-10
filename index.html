@@ -262,35 +262,10 @@
             display: none;
         }
 
-        .score-card {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
-            border: 2px solid rgba(16, 185, 129, 0.2);
-            border-radius: 20px;
-            padding: 32px;
-            margin: 32px 0;
-        }
-
-        .score-number {
-            font-size: 3rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-        }
-
-        .score-label {
-            font-size: 1.1rem;
-            color: #64748b;
-            font-weight: 500;
-        }
-
         #completion-timestamp {
             font-size: 0.75rem;
             color: #cbd5e1;
-            margin-top: -16px;
-            margin-bottom: 24px;
+            margin: 8px 0 32px;
             font-weight: 400;
             letter-spacing: 0.02em;
         }
@@ -381,10 +356,6 @@
 
         <div id="score-screen" class="screen">
             <h1>Congratulations!</h1>
-            <div class="score-card">
-                <div class="score-number">🎉</div>
-                <div class="score-label">You've completed the level!</div>
-            </div>
             <div id="completion-timestamp"></div>
             <button class="level-btn" onclick="returnToStart()">Return to Home</button>
         </div>
@@ -403,6 +374,12 @@
         function buildPianoKeys(startMidi) {
             const keys = [];
             let midi = startMidi;
+            // Always start the keyboard on a natural (white) note — skip past
+            // any sharp so a stray black key never appears before the first
+            // real white key.
+            while (CHROMATIC[((midi % 12) + 12) % 12].includes('#')) {
+                midi++;
+            }
             let whiteX = 0;
             let lastWhiteX = 0;
             let whiteCount = 0;
@@ -425,11 +402,16 @@
             return keys;
         }
 
+        const START_NOTE_OPTIONS = ['A2', 'B2', 'C3', 'D3', 'E3', 'F3', 'G3'];
+
         function getRandomStartMidi() {
-            // Shift the start of the keyboard up or down a handful of semitones each question,
-            // keeping the same 14-white-key span.
-            const shift = Math.floor(Math.random() * 9) - 4; // -4 .. +4
-            return BASE_START_MIDI + shift;
+            // Pick a random natural-note starting point each question, keeping
+            // the same 14-white-key span but shifting where it begins.
+            const noteName = START_NOTE_OPTIONS[Math.floor(Math.random() * START_NOTE_OPTIONS.length)];
+            const match = noteName.match(/^([A-G]#?)(\d+)$/);
+            const pitchClass = CHROMATIC.indexOf(match[1]);
+            const octave = parseInt(match[2], 10);
+            return octave * 12 + pitchClass;
         }
 
         function noteFrequency(noteName) {
@@ -633,7 +615,10 @@
         }
 
         function endLevel() {
-            const completedAt = new Date().toLocaleString();
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const completionMessage = `Level ${currentLevel} completed on ${dateStr}, ${timeStr}`;
 
             transitionScreens(
                 document.getElementById('game-screen'),
@@ -641,7 +626,7 @@
             );
 
             setTimeout(() => {
-                document.getElementById('completion-timestamp').textContent = `Completed on ${completedAt}`;
+                document.getElementById('completion-timestamp').textContent = completionMessage;
             }, 300);
         }
 
