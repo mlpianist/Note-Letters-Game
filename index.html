@@ -29,7 +29,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: 
+            background:
                 radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
                 radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
                 radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
@@ -49,7 +49,7 @@
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
             border-radius: 24px;
-            box-shadow: 
+            box-shadow:
                 0 32px 64px rgba(0, 0, 0, 0.15),
                 0 0 0 1px rgba(255, 255, 255, 0.2);
             padding: 48px;
@@ -177,7 +177,7 @@
             background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
             padding: 20px;
             border-radius: 20px;
-            box-shadow: 
+            box-shadow:
                 inset 0 2px 4px rgba(0, 0, 0, 0.06),
                 0 8px 32px rgba(0, 0, 0, 0.12);
             width: fit-content;
@@ -286,6 +286,15 @@
             font-weight: 500;
         }
 
+        #completion-timestamp {
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            margin-top: -16px;
+            margin-bottom: 24px;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+        }
+
         .progress-indicator {
             display: flex;
             justify-content: center;
@@ -371,57 +380,70 @@
         </div>
 
         <div id="score-screen" class="screen">
-            <h1>Level Complete!</h1>
+            <h1>Congratulations!</h1>
             <div class="score-card">
-                <div class="score-number" id="score-number"></div>
-                <div class="score-label" id="score-details"></div>
+                <div class="score-number">🎉</div>
+                <div class="score-label">You've completed the level!</div>
             </div>
-            <button class="level-btn" onclick="returnToStart()">Play Again</button>
+            <div id="completion-timestamp"></div>
+            <button class="level-btn" onclick="returnToStart()">Return to Home</button>
         </div>
     </div>
 
     <script>
+        const CHROMATIC = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-        const pianoKeys = [
-            { note: 'C3', type: 'white', pos: 0 },
-            { note: 'C#3', type: 'black', pos: 34 },
-            { note: 'D3', type: 'white', pos: 50 },
-            { note: 'D#3', type: 'black', pos: 84 },
-            { note: 'E3', type: 'white', pos: 100 },
-            { note: 'F3', type: 'white', pos: 150 },
-            { note: 'F#3', type: 'black', pos: 184 },
-            { note: 'G3', type: 'white', pos: 200 },
-            { note: 'G#3', type: 'black', pos: 234 },
-            { note: 'A3', type: 'white', pos: 250 },
-            { note: 'A#3', type: 'black', pos: 284 },
-            { note: 'B3', type: 'white', pos: 300 },
-            { note: 'C4', type: 'white', pos: 350 },
-            { note: 'C#4', type: 'black', pos: 384 },
-            { note: 'D4', type: 'white', pos: 400 },
-            { note: 'D#4', type: 'black', pos: 434 },
-            { note: 'E4', type: 'white', pos: 450 },
-            { note: 'F4', type: 'white', pos: 500 },
-            { note: 'F#4', type: 'black', pos: 534 },
-            { note: 'G4', type: 'white', pos: 550 },
-            { note: 'G#4', type: 'black', pos: 584 },
-            { note: 'A4', type: 'white', pos: 600 },
-            { note: 'A#4', type: 'black', pos: 634 },
-            { note: 'B4', type: 'white', pos: 650 }
-        ];
-        const noteFrequencies = {
-            'C3': 261.63, 'C#3': 277.18, 'D3': 293.66, 'D#3': 311.13, 'E3': 329.63,
-            'F3': 349.23, 'F#3': 369.99, 'G3': 392.00, 'G#3': 415.30, 'A3': 440.00,
-            'A#3': 466.16, 'B3': 493.88, 'C4': 523.25, 'C#4': 554.37, 'D4': 587.33,
-            'D#4': 622.25, 'E4': 659.25, 'F4': 698.46, 'F#4': 739.99, 'G4': 783.99,
-            'G#4': 830.61, 'A4': 880.00, 'A#4': 932.33, 'B4': 987.77
-        };
-        let currentLevel, noteCount, displayTime, totalNotes, correctNotes, currentRound, targetSequence, playerSequence;
+        const BASE_START_MIDI = 36; // C3, same starting point as the original keyboard
+        const A4_MIDI = 4 * 12 + 9; // reference pitch for frequency calculation
+
+        let currentLevel, noteCount, displayTime, score, targetSequence, playerSequence, currentPianoKeys;
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // --- Keyboard generation (shifts range each question, keeps the same ~2-octave span) ---
+        function buildPianoKeys(startMidi) {
+            const keys = [];
+            let midi = startMidi;
+            let whiteX = 0;
+            let lastWhiteX = 0;
+            let whiteCount = 0;
+            while (whiteCount < 14) {
+                const pitchClass = ((midi % 12) + 12) % 12;
+                const octave = Math.floor(midi / 12);
+                const pitchName = CHROMATIC[pitchClass];
+                const noteName = pitchName + octave;
+                const isWhite = !pitchName.includes('#');
+                if (isWhite) {
+                    keys.push({ note: noteName, type: 'white', pos: whiteX });
+                    lastWhiteX = whiteX;
+                    whiteX += 50;
+                    whiteCount++;
+                } else {
+                    keys.push({ note: noteName, type: 'black', pos: lastWhiteX + 34 });
+                }
+                midi++;
+            }
+            return keys;
+        }
+
+        function getRandomStartMidi() {
+            // Shift the start of the keyboard up or down a handful of semitones each question,
+            // keeping the same 14-white-key span.
+            const shift = Math.floor(Math.random() * 9) - 4; // -4 .. +4
+            return BASE_START_MIDI + shift;
+        }
+
+        function noteFrequency(noteName) {
+            const match = noteName.match(/^([A-G]#?)(\d+)$/);
+            const pitchClass = CHROMATIC.indexOf(match[1]);
+            const octave = parseInt(match[2], 10);
+            const midi = octave * 12 + pitchClass;
+            return 440 * Math.pow(2, (midi - A4_MIDI) / 12);
+        }
 
         function transitionScreens(hideElement, showElement) {
             hideElement.classList.add('fade-out');
             hideElement.classList.remove('fade-in');
-            
+
             setTimeout(() => {
                 hideElement.style.display = 'none';
                 showElement.style.display = 'block';
@@ -432,29 +454,17 @@
 
         function startGame(level) {
             currentLevel = level;
-            noteCount = level + 1;
+            noteCount = level === 1 ? 1 : level === 2 ? 3 : 5;
             displayTime = 2000 + (level - 1) * 500;
-            
-            // Set total notes correctly based on level
-            if (level === 1) {
-                totalNotes = 20; // 2 notes per round × 10 rounds
-            } else if (level === 2) {
-                totalNotes = 40; // 4 notes per round × 10 rounds
-            } else {
-                totalNotes = 60; // 6 notes per round × 10 rounds
-            }
-            
-            correctNotes = 0;
-            currentRound = 0;
-            
+            score = 0;
+
             transitionScreens(
                 document.getElementById('start-screen'),
                 document.getElementById('game-screen')
             );
 
-            createPiano();
             createProgressIndicator();
-            
+
             setTimeout(() => {
                 startRound();
             }, 600);
@@ -473,7 +483,7 @@
         function updateProgressIndicator() {
             const dots = document.querySelectorAll('.progress-dot');
             dots.forEach((dot, index) => {
-                if (index < currentRound) {
+                if (index < score) {
                     dot.classList.add('active');
                 } else {
                     dot.classList.remove('active');
@@ -481,52 +491,39 @@
             });
         }
 
-        function createPiano() {
+        function createPiano(keys) {
             const piano = document.getElementById('piano');
             piano.innerHTML = '';
-            piano.style.width = `${pianoKeys[pianoKeys.length - 1].pos + 50}px`;
-            pianoKeys.forEach(key => {
+            piano.style.width = `${keys[keys.length - 1].pos + 50}px`;
+            keys.forEach(key => {
                 const keyElement = document.createElement('div');
                 keyElement.className = key.type === 'white' ? 'key white-key' : 'key black-key';
                 keyElement.style.left = `${key.pos}px`;
                 if (key.type === 'white') {
                     keyElement.dataset.note = key.note;
-                    keyElement.onclick = () => handleKeyClick(key.note);
+                    keyElement.onclick = () => handleKeyClick(key.note, keyElement);
                 }
                 piano.appendChild(keyElement);
             });
         }
 
         function startRound() {
-            if (currentRound >= 10) {
-                endLevel();
-                return;
-            }
-            currentRound++;
-            updateProgressIndicator();
             targetSequence = [];
             playerSequence = [];
-            
-            // Generate the correct number of notes based on level
-            let notesToGenerate;
-            if (currentLevel === 1) {
-                notesToGenerate = 2;
-            } else if (currentLevel === 2) {
-                notesToGenerate = 4;
-            } else {
-                notesToGenerate = 6;
-            }
-            
-            for (let i = 0; i < notesToGenerate; i++) {
+
+            for (let i = 0; i < noteCount; i++) {
                 targetSequence.push(notes[Math.floor(Math.random() * notes.length)]);
             }
+
+            currentPianoKeys = buildPianoKeys(getRandomStartMidi());
+            createPiano(currentPianoKeys);
             showNotes();
         }
 
         function showNotes() {
             const noteDisplay = document.getElementById('note-display');
             const piano = document.getElementById('piano');
-            
+
             noteDisplay.innerHTML = '';
             targetSequence.forEach((note, index) => {
                 const span = document.createElement('span');
@@ -535,82 +532,117 @@
                 span.style.animationDelay = `${index * 0.1}s`;
                 noteDisplay.appendChild(span);
             });
-            
+
             piano.style.display = 'none';
-            
+
             setTimeout(() => {
                 noteDisplay.innerHTML = '';
                 piano.style.display = 'block';
             }, displayTime);
         }
 
-        function handleKeyClick(note) {
+        function handleKeyClick(note, keyElement) {
             playSound(note);
-            const keyElement = document.querySelector(`.key[data-note="${note}"]`);
             const expectedNote = targetSequence[playerSequence.length];
-            
-            if (note.startsWith(expectedNote)) {
-                correctNotes++;
-                keyElement.classList.add('correct');
-            } else {
-                keyElement.classList.add('incorrect');
-            }
-            
+            const isCorrectKey = note.startsWith(expectedNote);
             playerSequence.push(note);
-            
+
+            if (!isCorrectKey) {
+                keyElement.classList.add('incorrect');
+                endQuestion(false, keyElement);
+                return;
+            }
+
+            keyElement.classList.add('correct');
+
+            if (playerSequence.length === noteCount) {
+                endQuestion(true, keyElement);
+            } else {
+                setTimeout(() => {
+                    keyElement.classList.remove('correct');
+                }, 600);
+            }
+        }
+
+        function endQuestion(isCorrect, keyElement) {
             setTimeout(() => {
                 keyElement.classList.remove('correct', 'incorrect');
             }, 600);
-            
-            // Check if we've played all the required notes for this sequence
-            let requiredNotes;
-            if (currentLevel === 1) {
-                requiredNotes = 2;
-            } else if (currentLevel === 2) {
-                requiredNotes = 4;
+
+            if (isCorrect) {
+                score++;
             } else {
-                requiredNotes = 6;
+                score = Math.max(score - 1, 0);
             }
-            
-            if (playerSequence.length === requiredNotes) {
-                setTimeout(() => {
-                    document.getElementById('piano').style.display = 'none';
-                    setTimeout(startRound, 800);
-                }, 400);
-            }
+            updateProgressIndicator();
+
+            const reachedGoal = isCorrect && score >= 10;
+
+            // Audio feedback 0.2s after the last key of this question
+            setTimeout(() => {
+                if (reachedGoal) {
+                    playApplause();
+                } else if (isCorrect) {
+                    playCorrectFeedback();
+                } else {
+                    playWrongFeedback();
+                }
+            }, 200);
+
+            // Move on to the next round / completion screen
+            setTimeout(() => {
+                document.getElementById('piano').style.display = 'none';
+                if (reachedGoal) {
+                    endLevel();
+                } else {
+                    setTimeout(startRound, 400);
+                }
+            }, 1200);
         }
 
         function playSound(note) {
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
+
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(noteFrequencies[note], audioContext.currentTime);
-            
+            oscillator.frequency.setValueAtTime(noteFrequency(note), audioContext.currentTime);
+
             gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            
+
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            
+
             oscillator.start();
             oscillator.stop(audioContext.currentTime + 0.3);
         }
 
+        function playCorrectFeedback() {
+            const audio = new Audio('correct.mp3');
+            audio.play().catch(() => {});
+        }
+
+        function playWrongFeedback() {
+            const audio = new Audio('wrong.mp3');
+            audio.play().catch(() => {});
+        }
+
+        function playApplause() {
+            const audio = new Audio('applause.mp3');
+            audio.play().catch(() => {});
+        }
+
         function endLevel() {
-            const score = (correctNotes / totalNotes * 100).toFixed(1);
-            
+            const completedAt = new Date().toLocaleString();
+
+            transitionScreens(
+                document.getElementById('game-screen'),
+                document.getElementById('score-screen')
+            );
+
             setTimeout(() => {
-                transitionScreens(
-                    document.getElementById('game-screen'),
-                    document.getElementById('score-screen')
-                );
-                
-                setTimeout(() => {
-                    document.getElementById('score-number').textContent = `${score}%`;
-                    document.getElementById('score-details').textContent = `${correctNotes} out of ${totalNotes} notes correct`;
-                }, 300);
-            }, 1000);
+                document.getElementById('completion-timestamp').textContent = `Completed on ${completedAt}`;
+            }, 300);
         }
 
         function returnToStart() {
